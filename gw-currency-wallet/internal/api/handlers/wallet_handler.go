@@ -1,0 +1,270 @@
+package handlers
+
+import (
+	"encoding/json"
+	"errors"
+	"gw-currency-wallet/internal/api/middlew"
+	"gw-currency-wallet/internal/custom_err"
+	"gw-currency-wallet/internal/models"
+	"gw-currency-wallet/internal/service"
+	"gw-currency-wallet/pkg/response"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+)
+
+type WalletHandler struct {
+	service service.Wallet
+}
+
+func NewWalletHandler(service service.Wallet) *WalletHandler {
+	return &WalletHandler{
+		service: service,
+	}
+}
+
+func (h *WalletHandler) GetWalletByID(w http.ResponseWriter, r *http.Request) {
+	const op = "handler.GetWalletByID"
+	log := middlew.GetLogger(r.Context())
+
+	idStr := chi.URLParam(r, "walletID")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		log.Warn("invalid UUID", slog.String("op", op), slog.String("uuid", idStr))
+		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_request", "Invalid wallet ID format")
+		return
+	}
+
+	wallet, err := h.service.GetWalletByID(r.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, custom_err.ErrNotFound):
+			log.Info("wallet not found", slog.String("op", op), slog.String("id", id.String()))
+			response.WriteJSONError(w, log, http.StatusNotFound, "not_found", "Wallet not found")
+		default:
+			log.Error("failed to get wallet", slog.String("op", op), slog.String("error", err.Error()))
+			response.WriteJSONError(w, log, http.StatusInternalServerError, "internal_error", "Failed to retrieve wallet")
+		}
+		return
+	}
+
+	response.WriteJSONSuccess(w, log, http.StatusOK, wallet)
+}
+
+//func (h *WalletHandler) UpdateBalance(w http.ResponseWriter, r *http.Request) {
+//	const op = "handler.UpdateBalance"
+//	log := middlew.GetLogger(r.Context())
+//
+//	defer r.Body.Close()
+//
+//	var req models.WalletOperationRequest
+//	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+//		log.Warn("invalid JSON", slog.String("op", op), slog.String("error", err.Error()))
+//		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_json", "Invalid JSON body")
+//		return
+//	}
+//
+//	if req.WalletID == uuid.Nil {
+//		log.Warn("walletID is required", slog.String("op", op))
+//		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_field", "walletID is required and must be valid UUID")
+//		return
+//	}
+//	if req.RequestID == "" {
+//		log.Warn("requestID is required", slog.String("op", op))
+//		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_field", "requestID is required")
+//		return
+//	}
+//	if !req.OperationType.IsValid() {
+//		log.Warn("invalid operation type", slog.String("op", op))
+//		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_field", "Invalid operationType")
+//		return
+//	}
+//	if req.Amount <= 0 {
+//		log.Warn("amount must be positive", slog.String("op", op))
+//		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_field", "Amount must be positive")
+//		return
+//	}
+//
+//	err := h.service.UpdateBalance(r.Context(), req)
+//
+//	if err != nil {
+//		switch {
+//		case errors.Is(err, custom_err.ErrNotFound):
+//			log.Info("wallet not found", slog.String("op", op))
+//			response.WriteJSONError(w, log, http.StatusNotFound, "not_found", "Wallet not found")
+//		case errors.Is(err, custom_err.ErrInsufficientFunds):
+//			log.Warn("insufficient funds", slog.String("op", op))
+//			response.WriteJSONError(w, log, http.StatusBadRequest, "insufficient_funds", "Insufficient funds in the wallet")
+//		case errors.Is(err, custom_err.ErrDuplicateRequest):
+//			log.Info("operation already processed", slog.String("op", op))
+//			response.WriteJSONSuccess(w, log, http.StatusOK, map[string]string{
+//				"status":        "already_processed",
+//				"walletId":      req.WalletID.String(),
+//				"operationType": string(req.OperationType),
+//			})
+//		default:
+//			log.Error("failed to execute operation", slog.String("op", op), slog.String("error", err.Error()))
+//			response.WriteJSONError(w, log, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+//		}
+//		return
+//	}
+//
+//	response.WriteJSONSuccess(w, log, http.StatusOK, map[string]string{
+//		"status":        "success",
+//		"walletId":      req.WalletID.String(),
+//		"operationType": string(req.OperationType),
+//	})
+//}
+
+// GetBalance godoc
+// @Summary      Получить баланс пользователя
+// @Description  Возвращает баланс по всем валютам (USD, RUB, EUR)
+// @Tags         wallet
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.UserBalanceResponse
+// @Failure      401 {object} response.ErrorResponse
+// @Failure      500 {object} response.ErrorResponse
+// @Router       /balance [get]
+func (h *WalletHandler) GetBalance(w http.ResponseWriter, r *http.Request) {
+	const op = "handler.GetBalance"
+	log := middlew.GetLogger(r.Context())
+
+	userID := middlew.GetUserID(r.Context())
+
+	log.Info("getting user balance", slog.String("op", op), slog.String("user_id", userID.String()))
+
+	balances, err := h.service.GetUserBalance(r.Context(), userID)
+	if err != nil {
+		log.Error("failed to get balance", slog.String("op", op), slog.String("error", err.Error()))
+		response.WriteJSONError(w, log, http.StatusInternalServerError, "internal_error", "Failed to retrieve balance")
+		return
+	}
+
+	response.WriteJSONSuccess(w, log, http.StatusOK, map[string]interface{}{
+		"balance": balances,
+	})
+}
+
+// Deposit godoc
+// @Summary      Пополнить кошелек
+// @Description  Пополняет кошелек указанной суммой в выбранной валюте
+// @Tags         wallet
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.DepositRequest true "Данные пополнения"
+// @Success      200 {object} models.BalanceOperationResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      401 {object} response.ErrorResponse
+// @Router       /wallet/deposit [post]
+func (h *WalletHandler) Deposit(w http.ResponseWriter, r *http.Request) {
+	const op = "handler.Deposit"
+	log := middlew.GetLogger(r.Context())
+
+	defer r.Body.Close()
+
+	userID := middlew.GetUserID(r.Context())
+
+	var req models.DepositRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Warn("invalid JSON", slog.String("op", op), slog.String("error", err.Error()))
+		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_json", "Invalid JSON body")
+		return
+	}
+
+	log.Info("deposit request",
+		slog.String("op", op),
+		slog.String("user_id", userID.String()),
+		slog.Float64("amount", req.Amount),
+		slog.String("currency", string(req.Currency)))
+
+	result, err := h.service.Deposit(r.Context(), userID, req)
+	if err != nil {
+		switch {
+		case errors.Is(err, custom_err.ErrNotFound):
+			log.Info("wallet not found", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusNotFound, "not_found", "Wallet not found")
+		case errors.Is(err, custom_err.ErrDuplicateRequest):
+			response.WriteJSONError(w, log, http.StatusConflict, "duplicate_request",
+				"Operation with this requestID already processed")
+			return
+		case errors.Is(err, custom_err.ErrInvalidCurrency):
+			log.Warn("invalid currency", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_currency", "Invalid currency")
+		case errors.Is(err, custom_err.ErrInvalidAmount):
+			log.Warn("invalid amount", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_amount", "Invalid amount")
+		default:
+			log.Error("failed to deposit", slog.String("op", op), slog.String("error", err.Error()))
+			response.WriteJSONError(w, log, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+		}
+		return
+	}
+
+	response.WriteJSONSuccess(w, log, http.StatusOK, result)
+}
+
+// Withdraw godoc
+// @Summary      Вывести средства
+// @Description  Списывает средства с кошелька в указанной валюте
+// @Tags         wallet
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.WithdrawRequest true "Данные вывода"
+// @Success      200 {object} models.BalanceOperationResponse
+// @Failure      400 {object} response.ErrorResponse
+// @Failure      401 {object} response.ErrorResponse
+// @Router       /wallet/withdraw [post]
+func (h *WalletHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
+	const op = "handler.Withdraw"
+	log := middlew.GetLogger(r.Context())
+
+	defer r.Body.Close()
+
+	userID := middlew.GetUserID(r.Context())
+
+	var req models.WithdrawRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Warn("invalid JSON", slog.String("op", op), slog.String("error", err.Error()))
+		response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_json", "Invalid JSON body")
+		return
+	}
+
+	log.Info("withdraw request",
+		slog.String("op", op),
+		slog.String("user_id", userID.String()),
+		slog.Float64("amount", req.Amount),
+		slog.String("currency", string(req.Currency)))
+
+	result, err := h.service.Withdraw(r.Context(), userID, req)
+	if err != nil {
+		switch {
+		case errors.Is(err, custom_err.ErrNotFound):
+			log.Info("wallet not found", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusNotFound, "not_found", "Wallet not found")
+		case errors.Is(err, custom_err.ErrInsufficientFunds):
+			log.Warn("insufficient funds", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusBadRequest, "insufficient_funds", "Insufficient funds in the wallet")
+		case errors.Is(err, custom_err.ErrDuplicateRequest):
+			response.WriteJSONError(w, log, http.StatusConflict, "duplicate_request",
+				"Operation with this requestID already processed")
+			return
+		case errors.Is(err, custom_err.ErrInvalidCurrency):
+			log.Warn("invalid currency", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_currency", "Invalid currency")
+		case errors.Is(err, custom_err.ErrInvalidAmount):
+			log.Warn("invalid amount", slog.String("op", op))
+			response.WriteJSONError(w, log, http.StatusBadRequest, "invalid_amount", "Invalid amount")
+		default:
+			log.Error("failed to withdraw", slog.String("op", op), slog.String("error", err.Error()))
+			response.WriteJSONError(w, log, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+		}
+		return
+	}
+
+	response.WriteJSONSuccess(w, log, http.StatusOK, result)
+}
