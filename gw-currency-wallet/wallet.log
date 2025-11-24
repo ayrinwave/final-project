@@ -1,0 +1,3 @@
+{"time":"2025-11-24T23:10:18.98314+03:00","level":"INFO","source":{"function":"gw-currency-wallet/internal/app.NewApp","file":"D:/GolagProjects/service/gw-currency-wallet/internal/app/app.go","line":45},"msg":"инициализация приложения"}
+{"time":"2025-11-24T23:10:18.9989123+03:00","level":"INFO","source":{"function":"gw-currency-wallet/internal/app.NewApp","file":"D:/GolagProjects/service/gw-currency-wallet/internal/app/app.go","line":51},"msg":"конфигурация загружена","port":"8080"}
+{"time":"2025-11-24T23:10:18.9989123+03:00","level":"INFO","source":{"function":"gw-currency-wallet/internal/app.NewApp","file":"D:/GolagProjects/service/gw-currency-wallet/internal/app/app.go","line":53},"msg":"выполнение миграций базы данных"}

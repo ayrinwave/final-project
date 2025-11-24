@@ -1,0 +1,3 @@
+{"time":"2025-11-24T23:10:14.4706221+03:00","level":"INFO","source":{"function":"gw-exchanger/internal/app.NewApp","file":"D:/GolagProjects/service/gw-exchanger/internal/app/app.go","line":37},"msg":"инициализация gw-exchanger приложения"}
+{"time":"2025-11-24T23:10:14.4899217+03:00","level":"INFO","source":{"function":"gw-exchanger/internal/app.NewApp","file":"D:/GolagProjects/service/gw-exchanger/internal/app/app.go","line":43},"msg":"конфигурация загружена","grpc_port":"50051"}
+{"time":"2025-11-24T23:10:14.4899217+03:00","level":"INFO","source":{"function":"gw-exchanger/internal/app.NewApp","file":"D:/GolagProjects/service/gw-exchanger/internal/app/app.go","line":45},"msg":"выполнение миграций базы данных"}

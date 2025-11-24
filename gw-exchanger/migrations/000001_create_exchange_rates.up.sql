@@ -1,11 +1,10 @@
 -- Таблица для хранения курсов валют
 CREATE TABLE IF NOT EXISTS exchange_rates (
-                                              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                                              currency VARCHAR(3) NOT NULL UNIQUE,
-    rate NUMERIC(20, 10) NOT NULL CHECK (rate > 0),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    currency VARCHAR(3) NOT NULL UNIQUE,
+    rate DOUBLE PRECISION NOT NULL CHECK (rate > 0),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
-
 -- Индекс для быстрого поиска по валюте
 CREATE INDEX IF NOT EXISTS idx_exchange_rates_currency ON exchange_rates(currency);
 
