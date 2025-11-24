@@ -1,3 +1,39 @@
+# Запуск
+### Клонировать репозиторий
+```
+git clone https://github.com/ayrinwave/final-project.git
+```
+---
+### Запустить бд в Docker
+```
+docker-compose up -d --build
+```
+### Поднять 
+```
+docker-compose up -d
+```
+### Для остановки и удаления всех контейнеров
+```
+docker-compose down -v
+```
+### Для запуска сервисов
+
+Откройте 3 терминала по 1 терминалу на каждый сервис
+
+### Порядок и запуск сервисов
+
+1. ```
+   cd gw-notification
+   go run cmd/main.go
+   ```
+2. ```
+   cd gw-exchanger
+   go run cmd/main.go
+   ```
+3. ```
+   cd gw-currency-wallet
+   go run cmd/main.go
+   ```
 ### Задача
 Разработать три сервиса:
 - кошелек-обменник с авторизацией (**gw-currency-wallet**)
